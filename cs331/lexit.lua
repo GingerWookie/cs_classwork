@@ -54,4 +54,39 @@ local function isWhitespace(c)
 		or c == "\n" 
 		or c == "\r" 
 		or c == "\f" then
-		
+		return true
+	else
+		return false
+	end
+end
+
+local function isIllegal( c )
+	if c:len ~= 1 then
+		return false
+	elseif isWhitespace(c) then
+		return false
+	elseif c >= " " and c <= "~" then
+		return false
+	else 
+		return true
+	end
+end
+
+
+function lexer.lex(program)
+
+-- Variables --
+	local pos
+	local state
+	local lexstr
+	local category
+	local handlers
+
+-- States --
+	local DONE = 0
+	local START = 1
+	local LETTER = 2
+	local DIGIT = 3
+
+
+-- Utility Functions --
