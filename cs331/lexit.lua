@@ -90,3 +90,133 @@ function lexer.lex(program)
 
 
 -- Utility Functions --
+local function currChar()
+	return program:sub(pos, pos)
+end
+
+local function nextChar()
+	return program:sub(pos+1, pos+1)
+end
+
+local function dropOne()
+	pos = pos + 1
+end
+
+local function addOne()
+	lexstr = lexstr .. currChar()
+	dropOne()
+end
+
+local function skipWhitespace()
+	while true do
+		while isWhitespace(currChar()) do
+			dropOne()
+		end
+
+		if currChar() ~= "/" or nextChar() ~= "*" then
+			break
+		end
+		dropOne()
+		dropOne()
+
+		while true do
+			if currChar() == "*" and nextChar() == "/" then
+				dropOne()
+				dropOne()
+				break
+			elseif currChar() == "" then
+				return
+			end
+			dropOne()
+		end
+	end
+end
+
+local function handle_DONE()
+	io.write("ERROR: 'DONE' state should not be handled\n")
+	assert(0)
+end
+
+local function handle_START()
+	if isIllegal(ch) then
+		addOne()
+		state = DONE
+		category = lexer.MAL
+	elseif isLetter(ch) or ch == "_" then
+		addOne()
+		state = LETTER
+	elseif isDigit(ch) then
+		addOne()
+		state = DIGIT
+	elseif ch = "+" then
+		addOne()
+		state = PLUS
+	elseif ch == "-" then
+		addOne()
+		state = MINUS
+	elseif == "*" or ch == "/" or ch == "=" then
+		addOne()
+		state = STAR
+	elseif == "." then
+		addOne()
+		state = DOT
+	else 
+		addOne()
+		state = DONE
+		category = lexer.PUNCT
+	end		
+end
+
+local function handle_LETTER()
+	if isLetter(ch) or isDigit(ch) or ch == "_" then
+		addOne()
+	else
+		state = DONE
+		if lexstr == "begin" or lexstr == "end" or lexstr == "print" then
+			category = lexer.KEY
+		else
+			category = lexer.ID
+		end
+	end
+end
+
+local function handle_DIGIT()
+	if isDigit(ch) then
+		addOne()
+	elseif ch == "." then
+		addOne()
+		state = DIGDOT
+	else 
+		state = DONE
+		category = lexer.NUMLIT
+	end
+end
+
+local function handle_DIGDOT()
+	if isDigit(ch) then
+		addOne()
+	else
+		state = DONE
+		category = lexer.NUMLIT
+	end
+end
+
+local function handle_PLUS()
+	if isDigit(ch) then
+		addOne()
+		state = DIGIT
+	elseif ch == "+" or ch == "=" then
+		addOne()
+		state = DONE
+		category = lexer.OP
+	elseif ch == "." then		
+		if isDigit(nextChar()) then
+			addOne()
+			addOne()
+			state = DIGDOT
+		else
+			state = DONE
+			category = lexer.OP
+		end
+		
+end		
