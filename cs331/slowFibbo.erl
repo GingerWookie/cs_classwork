@@ -1,6 +1,5 @@
-% Bad Fibonacci for Erlang
--module(fibbo).
--export([fibbo/1]).
-fibbo(0) -> 0;
-fibbo(1) -> 1;
-fibbo(N) -> fibbo(N-1) + fibbo(N-2).
+-module(slowFibbo).
+-export([slowFibbo/1]).
+slowFibbo(0) -> 0;
+slowFibbo(1) -> 1;
+slowFibbo(N) -> slowFibbo(N-1) + slowFibbo(N-2).

@@ -2,21 +2,21 @@
 -- Dylan Tucker
 -- CS 331
 
-local lexer = {}
+local lexit = {}
 
 
 
 --Public Constraints--
 
-lexer.KEY = 1
-lexer.ID = 2
-lexer.NUMLIT = 3
-lexer.STRLIT = 4
-lexer.OP = 5
-lexer.PUNCT = 6
-lexer.MAL = 7
+lexit.KEY = 1
+lexit.ID = 2
+lexit.NUMLIT = 3
+lexit.STRLIT = 4
+lexit.OP = 5
+lexit.PUNCT = 6
+lexit.MAL = 7
 
-lexer.catnames = {
+lexit.catnames = {
 	"Keyword",
 	"Identifier",
 	"NumericLiteral",
@@ -55,15 +55,16 @@ local function isWhitespace(c)
 		or c == "\t" 
 		or c == "\n" 
 		or c == "\r" 
-		or c == "\f" then
+		or c == "\f" 
+		or c == "\v" then
 		return true
 	else
 		return false
 	end
 end
 
-local function isIllegal( c )
-	if c:len ~= 1 then
+local function isIllegal(c)
+	if c:len() ~= 1 then
 		return false
 	elseif isWhitespace(c) then
 		return false
@@ -74,31 +75,49 @@ local function isIllegal( c )
 	end
 end
 
+local preferOpFlag = false
+
+function lexit.preferOp()
+	preferOpFlag = true
+end
+
 --THE LEXER
 
-function lexer.lex(program)
+function lexit.lex(program)
 
 -- Variables --
 	local pos
 	local state
+	local ch
 	local lexstr
 	local category
 	local handlers
-
 -- States --
 	local DONE = 0
 	local START = 1
 	local LETTER = 2
 	local DIGIT = 3
+	local EDIGIT = 4
+	local EDIGITPLUS = 5
+	local PLUSMINUS = 6
+	local SINGLEQUOTES = 7
+	local DOUBLEQUOTES = 8
+	local OPERA = 9
 
 
 	-- Utility Functions --
+
+
 	local function currChar()
 		return program:sub(pos, pos)
 	end
 
 	local function nextChar()
 		return program:sub(pos+1, pos+1)
+	end
+
+	local function nextNextChar()
+		return program:sub(pos+2, pos+2)
 	end
 
 	local function dropOne()
@@ -116,15 +135,13 @@ function lexer.lex(program)
 				dropOne()
 			end
 
-			if currChar() ~= "/" or nextChar() ~= "*" then
+			if currChar() ~= "#" then
 				break
 			end
 			dropOne()
-			dropOne()
 
 			while true do
-				if currChar() == "*" and nextChar() == "/" then
-					dropOne()
+				if currChar() == "\n" then
 					dropOne()
 					break
 				elseif currChar() == "" then
@@ -144,29 +161,43 @@ function lexer.lex(program)
 		if isIllegal(ch) then
 			addOne()
 			state = DONE
-			category = lexer.MAL
+			category = lexit.MAL
 		elseif isLetter(ch) or ch == "_" then
 			addOne()
 			state = LETTER
 		elseif isDigit(ch) then
 			addOne()
 			state = DIGIT
-		elseif ch = "+" then
+		elseif ch == "+" or ch == "-" then
 			addOne()
-			state = PLUS
-		elseif ch == "-" then
+			state = PLUSMINUS
+		elseif ch == "\'" then
 			addOne()
-			state = MINUS
-		elseif == "*" or ch == "/" or ch == "=" then
+			state = SINGLEQUOTES
+		elseif ch == "\"" then
 			addOne()
-			state = STAR
-		elseif == "." then
+			state = DOUBLEQUOTES
+		elseif ch == "=" or ch == "!" or ch == "<" or ch == ">" then
 			addOne()
-			state = DOT
+			state = OPERA
+		elseif ch == "*" or ch == "/" or ch == "%" or ch == "[" or ch == "]" or ch == ";" then
+			addOne()
+			state = DONE
+			category = lexit.OP
+		elseif ch == "&" and nextChar() == "&" then
+			addOne()
+			addOne()
+			state = DONE
+			category = lexit.OP
+		elseif ch == "|" and nextChar() == "|" then
+			addOne()
+			addOne()
+			state = DONE
+			category = lexit.OP
 		else 
 			addOne()
 			state = DONE
-			category = lexer.PUNCT
+			category = lexit.PUNCT
 		end		
 	end
 
@@ -175,10 +206,21 @@ function lexer.lex(program)
 			addOne()
 		else
 			state = DONE
-			if lexstr == "begin" or lexstr == "end" or lexstr == "print" then
-				category = lexer.KEY
+			if lexstr == "call" 
+			or lexstr == "cr" 
+			or lexstr == "else" 
+			or lexstr == "elseif" 
+			or lexstr == "end"
+			or lexstr == "false"
+			or lexstr == "func"
+			or lexstr == "if"
+			or lexstr == "input"
+			or lexstr == "print"
+			or lexstr == "true"
+			or lexstr == "while" then
+				category = lexit.KEY
 			else
-				category = lexer.ID
+				category = lexit.ID
 			end
 		end
 	end
@@ -186,47 +228,127 @@ function lexer.lex(program)
 	local function handle_DIGIT()
 		if isDigit(ch) then
 			addOne()
-		elseif ch == "." then
+		elseif (ch == "e" or ch == "E") and isDigit(nextChar()) then
 			addOne()
-			state = DIGDOT
-		else 
+			state = EDIGIT
+		elseif (ch == "e" or ch == "E") and nextChar() == "+" and isDigit(nextNextChar()) then
+			addOne()
+			addOne()
+			state = EDIGIT
+		else
 			state = DONE
-			category = lexer.NUMLIT
+			category = lexit.NUMLIT
 		end
 	end
 
-	local function handle_DIGDOT()
+	local function handle_EDIGIT()
 		if isDigit(ch) then
 			addOne()
 		else
 			state = DONE
-			category = lexer.NUMLIT
+			category = lexit.NUMLIT
 		end
 	end
 
-	local function handle_PLUS()
-		if isDigit(ch) then
+	local function handle_EDIGITPLUS()
+		if isDigit(nextChar()) then
+			addOne()
+			addOne()
+		else
+			state = DONE
+			category = lexit.NUMLIT
+		end
+	end
+
+	local function handle_PLUSMINUS()
+		if preferOpFlag then
+			state = DONE
+			category = lexit.OP
+		elseif isDigit(ch) then
 			addOne()
 			state = DIGIT
-		elseif ch == "+" or ch == "=" then
-			addOne()
-			state = DONE
-			category = lexer.OP
-		elseif ch == "." then		
-			if isDigit(nextChar()) then
-				addOne()
-				addOne()
-				state = DIGDOT
-			else
-				state = DONE
-				category = lexer.OP
-			end
 		else
 			state = DONE
-			category = lexer.OP
+			category = lexit.OP
+		end
+	end
+
+	local function handle_SINGLEQUOTES()
+		if ch == "\n" or ch == "" then
+			addOne()
+			state = DONE
+			category = lexit.MAL
+		elseif ch == "\'" then
+			addOne()
+			state = DONE
+			category = lexit.STRLIT
+		else
+			addOne()
+		end
+	end
+
+	local function handle_DOUBLEQUOTES()
+		if ch == "\n" or ch == "" then
+			addOne()
+			state = DONE
+			category = lexit.MAL
+		elseif ch == "\"" then
+			addOne()
+			state = DONE
+			category = lexit.STRLIT
+		else
+			addOne()
+		end
+	end
+
+	local function handle_OPERA()
+		if ch == "=" then
+			addOne()
+			state = DONE
+			category = lexit.OP
+		else
+			state = DONE
+			category = lexit.OP
 		end
 	end
 
 
 
+	handlers = {
+	[DONE] = handle_DONE,
+	[START] = handle_START,
+	[LETTER] = handle_LETTER,
+	[DIGIT] = handle_DIGIT,
+	[EDIGIT] = handle_EDIGIT,
+	[EDIGITPLUS] = handle_EDIGITPLUS,
+	[PLUSMINUS] = handle_PLUSMINUS,
+	[SINGLEQUOTES] = handle_SINGLEQUOTES,
+	[DOUBLEQUOTES] = handle_DOUBLEQUOTES,
+	[OPERA] = handle_OPERA,
+	}
+
+	local function getLexeme (dummy1, dummy2)
+		if pos > program:len() then
+			preferOpFlag = false
+			return nil, nil
+		end
+		lexstr = ""
+		state = START
+		while state ~= DONE do
+			ch = currChar()
+			handlers[state]()
+		end
+
+		skipWhitespace()
+		preferOpFlag = false
+		return lexstr, category
+	end
+
+	pos = 1
+	skipWhitespace()
+	return getLexeme, nil, nil
 end		
+
+
+
+return lexit
