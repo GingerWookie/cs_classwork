@@ -71,7 +71,7 @@ local function atEnd()
 end
 
 -- matchString
---
+-- checks string advances if true
 local function matchString(s)
     if lexstr == s then
         advance()
@@ -82,7 +82,7 @@ local function matchString(s)
 end
 
 -- matchCat
---
+-- checks category advances if true
 local function matchCat(c)
     if lexcat == c then
         advance()
@@ -308,6 +308,8 @@ function parse_statement()
     end
 end
 
+-- parse_pring_arg
+-- non-terminal print arg
 function parse_print_arg()
     local good, ast, savelex
 
@@ -327,6 +329,8 @@ function parse_print_arg()
     end
 end
 
+-- parse_expr
+-- non-terminal expr
 function parse_expr()
     local good, ast1, ast2, savelex
 
@@ -352,6 +356,8 @@ function parse_expr()
     return true, ast1
 end
 
+-- parse_comp_expr
+-- non-terminal comp_expr
 function parse_comp_expr()
     local good, ast1, ast2, savelex
     savelex = lexstr
@@ -394,6 +400,8 @@ function parse_comp_expr()
     end
 end
 
+-- parse_arith_expr
+-- non-terminal arith_expr
 function parse_arith_expr()
     local good, ast1, ast2, savelex
 
@@ -421,6 +429,8 @@ function parse_arith_expr()
     return true, ast1
 end
 
+-- parse_term
+-- non-terminal term
 function parse_term()
     local good, ast1, ast2, savelex
 
@@ -450,6 +460,8 @@ function parse_term()
     return true, ast1
 end
 
+-- parse_factor
+-- non-terminal factor
 function parse_factor()
     local good, ast1, ast2, savelex
     savelex = lexstr
