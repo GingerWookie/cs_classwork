@@ -85,69 +85,22 @@ local function boolToInt(b)
 end
 
 
--- astToStr
--- Given an AST, produce a string holding the AST in (roughly) Lua form,
--- with numbers replaced by names of symbolic constants used in parseit.
--- A table is assumed to represent an array.
--- See the Assignment 4 description for the AST Specification.
---
--- THIS FUNCTION IS INTENDED FOR USE IN DEBUGGING ONLY!
--- IT SHOULD NOT BE CALLED IN THE FINAL VERSION OF THE CODE.
-function astToStr(x)
-    local symbolNames = {
-        "STMT_LIST", "INPUT_STMT", "PRINT_STMT", "FUNC_STMT",
-        "CALL_FUNC", "IF_STMT", "WHILE_STMT", "ASSN_STMT", "CR_OUT",
-        "STRLIT_OUT", "BIN_OP", "UN_OP", "NUMLIT_VAL", "BOOLLIT_VAL",
-        "SIMPLE_VAR", "ARRAY_VAR"
-    }
-    if type(x) == "number" then
-        local name = symbolNames[x]
-        if name == nil then
-            return "<Unknown numerical constant: "..x..">"
-        else
-            return name
-        end
-    elseif type(x) == "string" then
-        return '"'..x..'"'
-    elseif type(x) == "boolean" then
-        if x then
-            return "true"
-        else
-            return "false"
-        end
-    elseif type(x) == "table" then
-        local first = true
-        local result = "{"
-        for k = 1, #x do
-            if not first then
-                result = result .. ","
-            end
-            result = result .. astToStr(x[k])
-            first = false
-        end
-        result = result .. "}"
-        return result
-    elseif type(x) == "nil" then
-        return "nil"
-    else
-        return "<"..type(x)..">"
-    end
-end
-
 
 -- ***** Primary Function for Client Code *****
 
 
 function interpit.interp(ast, state, incall, outcall)
 
-
+-- interp_stmt_list
+-- takes and ast and interprits
     function interp_stmt_list(ast)
         for i = 2, #ast do
             interp_stmt(ast[i])
         end
     end
 
-
+-- interp_stmt
+-- takes ast and interprits its structure setting up the states
     function interp_stmt(ast)
         local name, body, str, indx, val
 
@@ -180,41 +133,38 @@ function interpit.interp(ast, state, incall, outcall)
             end
             interp_stmt_list(body)
         elseif ast[1] == IF_STMT then
-            val = eval_expr(ast[2])
-            if val ~= 0 then
-                body = ast[3]
+
+            for i = 2, #ast, 2 do
+                if ast[i][1] == STMT_LIST then
+                    if val ~= 1 then
+
+                        val = 1
+                        body = ast[i]
+                    end
+                    break
+                end
+                val = eval_expr(ast[i])
+                if val ~= 0 then
+                    body = ast[i+1]
+                    break
+                end
             end
-            -- local i = 4
-            -- while val == 0 do
-                
-            --     if ast[i][1] == STMT_LIST then
-            --         break
-            --     end
-            --     val = eval_expr(ast[i])
-            --     if val ~= 0 then
-            --         body = ast[i+1]
-            --         break
-            --     end
-            --     i = i + 2
-            -- end
-            -- if val == 0 and ast[i][1] == STMT_LIST then
-            --     body = ast[i]
-            -- end
             if val ~= 0 then
-            interp_stmt_list(body)
+                interp_stmt_list(body)
             end
         elseif ast[1] == WHILE_STMT then
             val = eval_expr(ast[2])
             body = ast[3]
             while val ~= 0 do 
+                interp_stmt_list(body)
                 val = eval_expr(ast[2])
                 body = ast[3]
-                interp_stmt_list(body)
             end
         else
             assert(ast[1] == ASSN_STMT)
             name, str, indx = process_lvalue(ast[2])
             val = eval_expr(ast[3])
+
             if val == nil then
                 val = 0
             end
@@ -222,6 +172,8 @@ function interpit.interp(ast, state, incall, outcall)
         end
     end
 
+-- eval_expr
+-- given an ast evalutes expressions to return values
     function eval_expr(ast)
         local name, typ, indx, val
         if ast[1] == NUMLIT_VAL then
@@ -235,6 +187,7 @@ function interpit.interp(ast, state, incall, outcall)
             end
             return val
         elseif ast[1] == ARRAY_VAR then
+
             name, typ, indx = process_lvalue(ast)
             val = get_lvalue(name, typ, indx)
             if val == nil then
@@ -251,7 +204,7 @@ function interpit.interp(ast, state, incall, outcall)
             return val
         elseif ast[1] == CALL_FUNC then
             interp_stmt(ast)
-            return 
+            return state.v["return"]
         else 
             assert(type(ast[1]) == "table")
             if ast[1][1] == UN_OP then
@@ -262,16 +215,38 @@ function interpit.interp(ast, state, incall, outcall)
                     val = eval_expr(ast[2])
                     return val
                 elseif ast[1][2] == "!" then
+                    if eval_expr(ast[2]) == 0 then
+                        return boolToInt(true)
+                    end
                     val = not eval_expr(ast[2])
                     return boolToInt(val)
                 end
             elseif ast[1][1] == BIN_OP then
                 if ast[1][2] == "&&" then
                     val = eval_expr(ast[2]) and eval_expr(ast[3])
-                    return boolToInt(val)
+                    if val > 1 then
+                        val = 1
+                    end
+                    if eval_expr(ast[2]) == 0 then
+                        val = 0
+                    end
+                    if eval_expr(ast[3]) == 0 then
+                        val = 0
+                    end
+                    
+                    return val
                 elseif ast[1][2] ==  "||" then
                     val = eval_expr(ast[2]) or eval_expr(ast[3])
-                    return boolToInt(val)
+                    if val > 1 then
+                        val = 1
+                    end
+                    if eval_expr(ast[2]) >= 1 then
+                        val = 1
+                    end
+                    if eval_expr(ast[3]) >= 1 then
+                        val = 1
+                    end
+                    return val
                 elseif ast[1][2] ==  "!=" then
                     val = eval_expr(ast[2]) ~= eval_expr(ast[3])
                     return boolToInt(val)                
@@ -316,6 +291,8 @@ function interpit.interp(ast, state, incall, outcall)
         end
     end
 
+-- process_lvalue
+-- returns a description of given lvalue
     function process_lvalue(ast)
         local name, typ, indx
         if ast[1] == SIMPLE_VAR then
@@ -332,23 +309,33 @@ function interpit.interp(ast, state, incall, outcall)
         end
     end
 
+-- get_lvalue
+-- with discription gets state.a or state.v
     function get_lvalue(name, typ, indx)
+        local val
         if typ == SIMPLE_VAR then
             return state.v[name]
-        else 
-            if (state.a[name][indx]==nil) then
-                return state.a[name][indx]
+        else
+            if state.a[name] == nil or state.a[name][indx] == nil then
+                return 0
             end
-            return 0
+            val = state.a[name][indx]
+            return val
         end
     end
 
+-- set_lvalue
+-- with discription sets state.a or state.v
     function set_lvalue(name, typ, indx, val)
         if typ == SIMPLE_VAR then
             state.v[name] = val
         else
-            state.a[name] = {}
-            state.a[name][indx] = val
+            if state.a[name] == nil then
+                state.a[name] = {}
+                state.a[name][indx] = val
+            else 
+                state.a[name][indx] = val
+            end 
         end
     end
 
