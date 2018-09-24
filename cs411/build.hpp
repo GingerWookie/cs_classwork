@@ -1,3 +1,7 @@
+// Dyl/an Tucker
+// cs411
+// A2 24/9/2018
+
 #ifndef BUILD_HPP
 #define BUILD_HPP
 

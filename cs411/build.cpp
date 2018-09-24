@@ -1,7 +1,7 @@
 // Dyl/an Tucker
 // cs411
 // A2 24/9/2018
-
+// Last Revised 24/09/2018
 #include "build.hpp"
 #include <vector>
 
@@ -31,7 +31,7 @@ int build(int west_cities, int east_cities, const std::vector<Bridge> & bridges)
 	// Generate all combinations of n <= 32 bridges
 	for (int i = 0; i < num_combinations; ++i)
 	{
-		for (int j = 0; j < 31; j++)
+		for (int j = 0; j < bridges.size(); j++)
 		{
 			if (((i >> j) & 1) == 1)
 			{
@@ -40,12 +40,15 @@ int build(int west_cities, int east_cities, const std::vector<Bridge> & bridges)
 		}
 	}
 
+	// Iterate through all combinations 
 	for (int i = 0; i < num_combinations; ++i)
 	{
+		// Iterate through all bridges in the combination
 		for (int j = 0; j < bridge_combinations[i].size(); ++j)
 		{
 			if (bridge_combinations[i].size() > 1)
 			{
+				// Check if bridge combination is valid
 				for (int k = j + 1; k < bridge_combinations[i].size(); k++)
 				{
 					if (bridge_combinations[i][j][0] == bridge_combinations[i][k][0] ||
@@ -73,6 +76,7 @@ int build(int west_cities, int east_cities, const std::vector<Bridge> & bridges)
 				break;
 			}
 		}
+
 		if (temp_toll > toll)
 		{
 			toll = temp_toll;
